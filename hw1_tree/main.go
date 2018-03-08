@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	//"strings"
 )
 
 const (
@@ -31,6 +30,24 @@ func (fl FileList) Less(i, j int) bool {
 	return fl[i].Name() < fl[j].Name()
 }
 
+func (fl FileList) OnlyDirs() FileList {
+	var count int
+	for _, item := range fl {
+		if item.IsDir() {
+			count++
+		}
+	}
+	newFileList := make(FileList, count)
+	var i int
+	for _, item := range fl {
+		if item.IsDir() {
+			newFileList[i] = item
+			i++
+		}
+	}
+	return newFileList
+}
+
 func main() {
 	out := os.Stdout
 	if !(len(os.Args) == 2 || len(os.Args) == 3) {
@@ -50,18 +67,29 @@ func dirTree(out io.Writer, path string, printFiles bool) error {
 
 func outFiles(out io.Writer, path string, printFiles bool, indent string) error {
 	files, _ := ioutil.ReadDir(path)
+	if !printFiles {
+		files = FileList(files).OnlyDirs()
+	}
 	sort.Sort(FileList(files))
 	for ix, item := range files {
+		var prefix, newIdent, strSize string
 		if ix == len(files)-1 {
-			fmt.Fprintf(out, "%s%s%s%s\n", indent, DELIM_END, DELIM_HORIZON, item.Name())
-			if item.IsDir() {
-				outFiles(out, filepath.Join(path, item.Name()), printFiles, indent+" ")
-			}
+			prefix = fmt.Sprintf("%s%s%s", indent, DELIM_END, DELIM_HORIZON)
+			newIdent = indent + "\t"
 		} else {
-			fmt.Fprintf(out, "%s%s%s%s\n", indent, DELIM_TRIPLE, DELIM_HORIZON, item.Name())
-			if item.IsDir() {
-				outFiles(out, filepath.Join(path, item.Name()), printFiles, indent+DELIM_VERTICAL+" ")
+			prefix = fmt.Sprintf("%s%s%s", indent, DELIM_TRIPLE, DELIM_HORIZON)
+			newIdent = indent + DELIM_VERTICAL + "\t"
+		}
+		if item.IsDir() {
+			fmt.Fprintf(out, "%s%s\n", prefix, item.Name())
+			outFiles(out, filepath.Join(path, item.Name()), printFiles, newIdent)
+		} else {
+			if item.Size() == 0 {
+				strSize = "empty"
+			} else {
+				strSize = fmt.Sprintf("%db", item.Size())
 			}
+			fmt.Fprintf(out, "%s%s (%s)\n", prefix, item.Name(), strSize)
 		}
 	}
 	return nil
