@@ -22,7 +22,7 @@ func ExecutePipeline(jobs ...job) {
 		ch1 = ch2
 		ch2 = make(chan interface{})
 	}
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(10 * time.Second)
 }
 
 func SingleHash(in, out chan interface{}) {
@@ -34,6 +34,7 @@ func SingleHash(in, out chan interface{}) {
 		result := DataSignerCrc32(value) + "~" + DataSignerCrc32(DataSignerMd5(value))
 		out <- result
 	}
+	close(out)
 }
 
 func MultiHash(in, out chan interface{}) {
@@ -44,6 +45,7 @@ func MultiHash(in, out chan interface{}) {
 		}
 		out <- result
 	}
+	close(out)
 }
 
 func CombineResults(in, out chan interface{}) {
@@ -54,4 +56,5 @@ func CombineResults(in, out chan interface{}) {
 	sort.Strings(parts)
 	result := strings.Join(parts, "_")
 	out <- result
+	close(out)
 }
