@@ -1,11 +1,11 @@
 package main
 
 import (
-	//"fmt"
+	//	"fmt"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
+	"sync"
 )
 
 func main() {
@@ -13,39 +13,75 @@ func main() {
 
 func ExecutePipeline(jobs ...job) {
 	var ch1, ch2 chan interface{}
+	wgJobs := &sync.WaitGroup{}
 	ch2 = make(chan interface{})
 	for _, f := range jobs {
 		in := ch1
 		out := ch2
-		//fmt.Println("Run job: ", ix, f, in, out)
-		go f(in, out)
+		wgJobs.Add(1)
+		go func(wg *sync.WaitGroup, f job, in, out chan interface{}) {
+			defer wg.Done()
+			//fmt.Println(in, out, f)
+			f(in, out)
+			close(out)
+		}(wgJobs, f, in, out)
 		ch1 = ch2
 		ch2 = make(chan interface{})
 	}
-	time.Sleep(10 * time.Second)
+	wgJobs.Wait()
 }
 
 func SingleHash(in, out chan interface{}) {
+	mutex := &sync.Mutex{}
+	wg := &sync.WaitGroup{}
 	for data := range in {
+		parts := make([]string, 2)
 		value, ok := data.(string)
 		if !ok {
 			value = strconv.Itoa(data.(int))
 		}
-		result := DataSignerCrc32(value) + "~" + DataSignerCrc32(DataSignerMd5(value))
+		wg.Add(2)
+		go func(wg *sync.WaitGroup, slot int, mutex *sync.Mutex) {
+			defer wg.Done()
+			crc := DataSignerCrc32(value)
+			mutex.Lock()
+			parts[slot] = crc
+			mutex.Unlock()
+		}(wg, 0, mutex)
+
+		go func(wg *sync.WaitGroup, slot int, mutex *sync.Mutex) {
+			defer wg.Done()
+			crc := DataSignerCrc32(DataSignerMd5(value))
+			mutex.Lock()
+			parts[slot] = crc
+			mutex.Unlock()
+		}(wg, 1, mutex)
+		wg.Wait()
+		result := strings.Join(parts, "~")
 		out <- result
 	}
-	close(out)
 }
 
 func MultiHash(in, out chan interface{}) {
+	mutex := &sync.Mutex{}
+	wg := &sync.WaitGroup{}
 	for data := range in {
 		var result string
+		parts := make([]string, 6)
 		for i := 0; i < 6; i++ {
-			result += DataSignerCrc32(strconv.Itoa(i) + data.(string))
+			wg.Add(1)
+			go func(wg *sync.WaitGroup, i int, parts []string, mutex *sync.Mutex) {
+				defer wg.Done()
+				crc := DataSignerCrc32(strconv.Itoa(i) + data.(string))
+				mutex.Lock()
+				parts[i] = crc
+				mutex.Unlock()
+			}(wg, i, parts, mutex)
 		}
+		wg.Wait()
+		result = strings.Join(parts, "")
 		out <- result
 	}
-	close(out)
 }
 
 func CombineResults(in, out chan interface{}) {
@@ -56,5 +92,4 @@ func CombineResults(in, out chan interface{}) {
 	sort.Strings(parts)
 	result := strings.Join(parts, "_")
 	out <- result
-	close(out)
 }
