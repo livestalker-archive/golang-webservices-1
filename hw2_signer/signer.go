@@ -32,56 +32,72 @@ func ExecutePipeline(jobs ...job) {
 }
 
 func SingleHash(in, out chan interface{}) {
-	mutex := &sync.Mutex{}
-	wg := &sync.WaitGroup{}
+	wgGlobal := &sync.WaitGroup{}
+	onceMD5 := &sync.Mutex{}
 	for data := range in {
-		parts := make([]string, 2)
-		value, ok := data.(string)
-		if !ok {
-			value = strconv.Itoa(data.(int))
-		}
-		wg.Add(2)
-		go func(wg *sync.WaitGroup, slot int, mutex *sync.Mutex) {
-			defer wg.Done()
-			crc := DataSignerCrc32(value)
-			mutex.Lock()
-			parts[slot] = crc
-			mutex.Unlock()
-		}(wg, 0, mutex)
+		wgGlobal.Add(1)
+		go func(data interface{}) {
+			defer wgGlobal.Done()
+			parts := make([]string, 2)
+			mutex := &sync.Mutex{}
+			wg := &sync.WaitGroup{}
+			value, ok := data.(string)
+			if !ok {
+				value = strconv.Itoa(data.(int))
+			}
+			wg.Add(2)
+			go func(wg *sync.WaitGroup, slot int, mutex *sync.Mutex) {
+				defer wg.Done()
+				crc := DataSignerCrc32(value)
+				mutex.Lock()
+				parts[slot] = crc
+				mutex.Unlock()
+			}(wg, 0, mutex)
 
-		go func(wg *sync.WaitGroup, slot int, mutex *sync.Mutex) {
-			defer wg.Done()
-			crc := DataSignerCrc32(DataSignerMd5(value))
-			mutex.Lock()
-			parts[slot] = crc
-			mutex.Unlock()
-		}(wg, 1, mutex)
-		wg.Wait()
-		result := strings.Join(parts, "~")
-		out <- result
+			go func(wg *sync.WaitGroup, slot int, mutex *sync.Mutex) {
+				defer wg.Done()
+				onceMD5.Lock()
+				md5 := DataSignerMd5(value)
+				onceMD5.Unlock()
+				crc := DataSignerCrc32(md5)
+				mutex.Lock()
+				parts[slot] = crc
+				mutex.Unlock()
+			}(wg, 1, mutex)
+			wg.Wait()
+			result := strings.Join(parts, "~")
+			out <- result
+		}(data)
 	}
+	wgGlobal.Wait()
 }
 
 func MultiHash(in, out chan interface{}) {
-	mutex := &sync.Mutex{}
-	wg := &sync.WaitGroup{}
+	wgGlobal := &sync.WaitGroup{}
 	for data := range in {
-		var result string
-		parts := make([]string, 6)
-		for i := 0; i < 6; i++ {
-			wg.Add(1)
-			go func(wg *sync.WaitGroup, i int, parts []string, mutex *sync.Mutex) {
-				defer wg.Done()
-				crc := DataSignerCrc32(strconv.Itoa(i) + data.(string))
-				mutex.Lock()
-				parts[i] = crc
-				mutex.Unlock()
-			}(wg, i, parts, mutex)
-		}
-		wg.Wait()
-		result = strings.Join(parts, "")
-		out <- result
+		wgGlobal.Add(1)
+		go func(data interface{}) {
+			defer wgGlobal.Done()
+			var result string
+			mutex := &sync.Mutex{}
+			wg := &sync.WaitGroup{}
+			parts := make([]string, 6)
+			for i := 0; i < 6; i++ {
+				wg.Add(1)
+				go func(wg *sync.WaitGroup, i int, parts []string, mutex *sync.Mutex) {
+					defer wg.Done()
+					crc := DataSignerCrc32(strconv.Itoa(i) + data.(string))
+					mutex.Lock()
+					parts[i] = crc
+					mutex.Unlock()
+				}(wg, i, parts, mutex)
+			}
+			wg.Wait()
+			result = strings.Join(parts, "")
+			out <- result
+		}(data)
 	}
+	wgGlobal.Wait()
 }
 
 func CombineResults(in, out chan interface{}) {
