@@ -65,3 +65,16 @@ BenchmarkFast-4               10         180279370 ns/op        336852898 B/op  
 PASS
 ok      github.com/livestalker/golang-webservices-1/hw3_bench   4.898s
 ```
+
+Удалено использование regexp
+
+```
+$ go test -bench . -benchmem -cpuprofile cpu.out
+goos: windows
+goarch: amd64
+pkg: github.com/livestalker/golang-webservices-1/hw3_bench
+BenchmarkSlow-4               10         166943960 ns/op        336852687 B/op    284123 allocs/op
+BenchmarkFast-4              100          17807342 ns/op         3406083 B/op      60534 allocs/op
+PASS
+ok      github.com/livestalker/golang-webservices-1/hw3_bench   4.449s
+```
