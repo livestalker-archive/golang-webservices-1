@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 )
 
@@ -81,7 +80,7 @@ func FastSearch(out io.Writer) {
 				// log.Println("cant cast browser to string")
 				continue
 			}
-			if ok, err := regexp.MatchString("MSIE", browser); ok && err == nil {
+			if strings.Contains(browser, "MSIE") {
 				isMSIE = true
 				notSeenBefore := true
 				for _, item := range seenBrowsers {
@@ -95,6 +94,20 @@ func FastSearch(out io.Writer) {
 					uniqueBrowsers++
 				}
 			}
+			// ## if ok, err := regexp.MatchString("MSIE", browser); ok && err == nil {
+			// ## 	isMSIE = true
+			// ## 	notSeenBefore := true
+			// ## 	for _, item := range seenBrowsers {
+			// ## 		if item == browser {
+			// ## 			notSeenBefore = false
+			// ## 		}
+			// ## 	}
+			// ## 	if notSeenBefore {
+			// ## 		// log.Printf("SLOW New browser: %s, first seen: %s", browser, user["name"])
+			// ## 		seenBrowsers = append(seenBrowsers, browser)
+			// ## 		uniqueBrowsers++
+			// ## 	}
+			// ## }
 		}
 
 		if !(isAndroid && isMSIE) {
