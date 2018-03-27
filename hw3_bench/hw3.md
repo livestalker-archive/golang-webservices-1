@@ -49,3 +49,19 @@ ok coursera/hw3 3.897s
 
 Примечание:
 * easyjson основан на рефлекции и не может работать с пакетом main. Для генерации кода вам необходимо вынести вашу структуру в отдельный пакет, сгенерить там код, потом забрать его в main
+
+
+## Результаты
+
+Не оптимизированная версия:
+
+```
+$ go test -bench . -benchmem
+goos: windows
+goarch: amd64
+pkg: github.com/livestalker/golang-webservices-1/hw3_bench
+BenchmarkSlow-4               10         181282030 ns/op        336852536 B/op    284157 allocs/op
+BenchmarkFast-4               10         180279370 ns/op        336852898 B/op    284161 allocs/op
+PASS
+ok      github.com/livestalker/golang-webservices-1/hw3_bench   4.898s
+```
