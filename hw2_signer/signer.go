@@ -46,6 +46,45 @@ func SingleHash(in, out chan interface{}) {
 				value = strconv.Itoa(data.(int))
 			}
 			wg.Add(2)
+			go func(slot int) {
+				defer wg.Done()
+				crc := DataSignerCrc32(value)
+				mutex.Lock()
+				defer mutex.Unlock()
+				parts[slot] = crc
+			}(0)
+			go func(slot int) {
+				defer wg.Done()
+				onceMD5.Lock()
+				md5 := DataSignerMd5(value)
+				onceMD5.Unlock()
+				crc := DataSignerCrc32(md5)
+				mutex.Lock()
+				defer mutex.Unlock()
+				parts[slot] = crc
+			}(1)
+			wg.Wait()
+			out <- strings.Join(parts, "~")
+		}(data)
+	}
+	wgGlobal.Wait()
+}
+
+func SingleHashOld(in, out chan interface{}) {
+	wgGlobal := &sync.WaitGroup{}
+	onceMD5 := &sync.Mutex{}
+	for data := range in {
+		wgGlobal.Add(1)
+		go func(data interface{}) {
+			defer wgGlobal.Done()
+			parts := make([]string, 2)
+			mutex := &sync.Mutex{}
+			wg := &sync.WaitGroup{}
+			value, ok := data.(string)
+			if !ok {
+				value = strconv.Itoa(data.(int))
+			}
+			wg.Add(2)
 			go func(wg *sync.WaitGroup, slot int, mutex *sync.Mutex) {
 				defer wg.Done()
 				crc := DataSignerCrc32(value)
@@ -73,6 +112,32 @@ func SingleHash(in, out chan interface{}) {
 }
 
 func MultiHash(in, out chan interface{}) {
+	wgGlobal := &sync.WaitGroup{}
+	for data := range in {
+		wgGlobal.Add(1)
+		go func(data interface{}) {
+			defer wgGlobal.Done()
+			parts := make([]string, 6)
+			wg := &sync.WaitGroup{}
+			mutex := &sync.Mutex{}
+			for i := 0; i < 6; i++ {
+				wg.Add(1)
+				go func(i int) {
+					defer wg.Done()
+					crc := DataSignerCrc32(strconv.Itoa(i) + data.(string))
+					mutex.Lock()
+					parts[i] = crc
+					mutex.Unlock()
+				}(i)
+			}
+			wg.Wait()
+			out <- strings.Join(parts, "")
+		}(data)
+	}
+	wgGlobal.Wait()
+}
+
+func MultiHashOld(in, out chan interface{}) {
 	wgGlobal := &sync.WaitGroup{}
 	for data := range in {
 		wgGlobal.Add(1)
