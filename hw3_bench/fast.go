@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,18 +10,41 @@ import (
 )
 
 func main() {
-	fastOut := new(bytes.Buffer)
-	FastSearch(fastOut)
-	fastResult := fastOut.String()
-	fmt.Println(fastResult)
+	file, err := os.Open(filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	scanner.Scan()
+	data := []byte(scanner.Text())
+	u := &User{}
+	json.Unmarshal(data, u)
+	fmt.Println(u.Browsers)
+	fmt.Println(u.Company)
+	fmt.Println(u.Country)
+	fmt.Println(u.Email)
+	fmt.Println(u.Job)
+	fmt.Println(u.Name)
+	fmt.Println(u.Phone)
 }
 
-// вам надо написать более быструю оптимальную этой функции
+type User struct {
+	Browsers []string
+	Company  string
+	Country  string
+	Email    string
+	Job      string
+	Name     string
+	Phone    string
+}
+
 func FastSearch(out io.Writer) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		panic(err)
 	}
+	defer file.Close()
 
 	seenBrowsers := []string{}
 	uniqueBrowsers := 0
