@@ -9,6 +9,53 @@ import (
 	"strings"
 )
 
+type User struct {
+	Browsers []string
+	Company  string
+	Country  string
+	Email    string
+	Job      string
+	Name     string
+	Phone    string
+}
+
+func (user *User) procBrowsers(i int) string {
+	isAndroid := false
+	isMSIE := false
+
+	browsers := user.Browsers
+
+	for _, browser := range browsers {
+		var notSeenBefore bool
+		if strings.Contains(browser, "Android") {
+			isAndroid = true
+			notSeenBefore = true
+		}
+		if strings.Contains(browser, "MSIE") {
+			isMSIE = true
+			notSeenBefore = true
+		}
+		if isAndroid || isMSIE {
+			for _, item := range seenBrowsers {
+				if item == browser {
+					notSeenBefore = false
+				}
+			}
+			if notSeenBefore {
+				seenBrowsers = append(seenBrowsers, browser)
+				uniqueBrowsers++
+			}
+		}
+	}
+
+	if !(isAndroid && isMSIE) {
+		return ""
+	}
+
+	email := strings.Replace(user.Email, "@", " [at] ", -1)
+	return fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, email)
+}
+
 func main() {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -27,16 +74,6 @@ func main() {
 	fmt.Println(u.Job)
 	fmt.Println(u.Name)
 	fmt.Println(u.Phone)
-}
-
-type User struct {
-	Browsers []string
-	Company  string
-	Country  string
-	Email    string
-	Job      string
-	Name     string
-	Phone    string
 }
 
 func FastSearch(out io.Writer) {
