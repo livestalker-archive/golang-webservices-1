@@ -71,23 +71,16 @@ func FastSearch(out io.Writer) {
 		browsers := user.Browsers
 
 		for _, browser := range browsers {
+			var notSeenBefore bool
 			if strings.Contains(browser, "Android") {
 				isAndroid = true
-				notSeenBefore := true
-				for _, item := range seenBrowsers {
-					if item == browser {
-						notSeenBefore = false
-					}
-				}
-				if notSeenBefore {
-					// log.Printf("SLOW New browser: %s, first seen: %s", browser, user["name"])
-					seenBrowsers = append(seenBrowsers, browser)
-					uniqueBrowsers++
-				}
+				notSeenBefore = true
 			}
 			if strings.Contains(browser, "MSIE") {
 				isMSIE = true
-				notSeenBefore := true
+				notSeenBefore = true
+			}
+			if isAndroid || isMSIE {
 				for _, item := range seenBrowsers {
 					if item == browser {
 						notSeenBefore = false
