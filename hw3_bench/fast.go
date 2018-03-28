@@ -68,19 +68,9 @@ func FastSearch(out io.Writer) {
 		isAndroid := false
 		isMSIE := false
 
-		// browsers, ok := user["browsers"].([]interface{})
 		browsers := user.Browsers
-		// if !ok {
-		// 	// log.Println("cant cast browsers")
-		// 	continue
-		// }
 
 		for _, browser := range browsers {
-			// browser, ok := browserRaw.(string)
-			// if !ok {
-			// 	// log.Println("cant cast browser to string")
-			// 	continue
-			// }
 			if strings.Contains(browser, "Android") {
 				isAndroid = true
 				notSeenBefore := true
@@ -98,11 +88,6 @@ func FastSearch(out io.Writer) {
 		}
 
 		for _, browser := range browsers {
-			// browser, ok := browserRaw.(string)
-			// if !ok {
-			// 	// log.Println("cant cast browser to string")
-			// 	continue
-			// }
 			if strings.Contains(browser, "MSIE") {
 				isMSIE = true
 				notSeenBefore := true
@@ -117,20 +102,6 @@ func FastSearch(out io.Writer) {
 					uniqueBrowsers++
 				}
 			}
-			// ## if ok, err := regexp.MatchString("MSIE", browser); ok && err == nil {
-			// ## 	isMSIE = true
-			// ## 	notSeenBefore := true
-			// ## 	for _, item := range seenBrowsers {
-			// ## 		if item == browser {
-			// ## 			notSeenBefore = false
-			// ## 		}
-			// ## 	}
-			// ## 	if notSeenBefore {
-			// ## 		// log.Printf("SLOW New browser: %s, first seen: %s", browser, user["name"])
-			// ## 		seenBrowsers = append(seenBrowsers, browser)
-			// ## 		uniqueBrowsers++
-			// ## 	}
-			// ## }
 		}
 
 		if !(isAndroid && isMSIE) {

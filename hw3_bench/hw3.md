@@ -78,3 +78,16 @@ BenchmarkFast-4              100          17807342 ns/op         3406083 B/op   
 PASS
 ok      github.com/livestalker/golang-webservices-1/hw3_bench   4.449s
 ```
+
+Удалено преобразование типов, объявлена структура данных
+
+```
+$ go test -bench . -benchmem
+goos: windows
+goarch: amd64
+pkg: github.com/livestalker/golang-webservices-1/hw3_bench
+BenchmarkSlow-4                5         207844260 ns/op        336851809 B/op    284157 allocs/op
+BenchmarkFast-4              100          20410853 ns/op         2736638 B/op      18614 allocs/op
+PASS
+ok      github.com/livestalker/golang-webservices-1/hw3_bench   3.910s
+```
