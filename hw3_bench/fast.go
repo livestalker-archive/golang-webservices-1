@@ -85,9 +85,6 @@ func FastSearch(out io.Writer) {
 					uniqueBrowsers++
 				}
 			}
-		}
-
-		for _, browser := range browsers {
 			if strings.Contains(browser, "MSIE") {
 				isMSIE = true
 				notSeenBefore := true
