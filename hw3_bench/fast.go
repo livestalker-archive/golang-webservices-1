@@ -49,12 +49,12 @@ func FastSearch(out io.Writer) {
 	seenBrowsers := []string{}
 	uniqueBrowsers := 0
 	foundUsers := ""
-	users := make([]map[string]interface{}, 0)
+	users := make([]User, 0)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		user := make(map[string]interface{})
+		user := User{}
 		// fmt.Printf("%v %v\n", err, line)
 		err := json.Unmarshal([]byte(line), &user)
 		if err != nil {
@@ -68,18 +68,19 @@ func FastSearch(out io.Writer) {
 		isAndroid := false
 		isMSIE := false
 
-		browsers, ok := user["browsers"].([]interface{})
-		if !ok {
-			// log.Println("cant cast browsers")
-			continue
-		}
+		// browsers, ok := user["browsers"].([]interface{})
+		browsers := user.Browsers
+		// if !ok {
+		// 	// log.Println("cant cast browsers")
+		// 	continue
+		// }
 
-		for _, browserRaw := range browsers {
-			browser, ok := browserRaw.(string)
-			if !ok {
-				// log.Println("cant cast browser to string")
-				continue
-			}
+		for _, browser := range browsers {
+			// browser, ok := browserRaw.(string)
+			// if !ok {
+			// 	// log.Println("cant cast browser to string")
+			// 	continue
+			// }
 			if strings.Contains(browser, "Android") {
 				isAndroid = true
 				notSeenBefore := true
@@ -96,12 +97,12 @@ func FastSearch(out io.Writer) {
 			}
 		}
 
-		for _, browserRaw := range browsers {
-			browser, ok := browserRaw.(string)
-			if !ok {
-				// log.Println("cant cast browser to string")
-				continue
-			}
+		for _, browser := range browsers {
+			// browser, ok := browserRaw.(string)
+			// if !ok {
+			// 	// log.Println("cant cast browser to string")
+			// 	continue
+			// }
 			if strings.Contains(browser, "MSIE") {
 				isMSIE = true
 				notSeenBefore := true
@@ -137,8 +138,8 @@ func FastSearch(out io.Writer) {
 		}
 
 		// log.Println("Android and MSIE user:", user["name"], user["email"])
-		email := strings.Replace(user["email"].(string), "@", " [at] ", -1)
-		foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user["name"], email)
+		email := strings.Replace(user.Email, "@", " [at] ", -1)
+		foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, email)
 	}
 
 	fmt.Fprintln(out, "found users:\n"+foundUsers)
