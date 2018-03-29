@@ -91,3 +91,16 @@ BenchmarkFast-4              100          20410853 ns/op         2736638 B/op   
 PASS
 ok      github.com/livestalker/golang-webservices-1/hw3_bench   3.910s
 ```
+
+Удален слайс для хранения пользователей, пользователей обрабатываем по одному в потоковом режиме
+
+```
+$ go test -bench . -benchmem
+goos: windows
+goarch: amd64
+pkg: github.com/livestalker/golang-webservices-1/hw3_bench
+BenchmarkSlow-4               10         162945270 ns/op        336853004 B/op    284165 allocs/op
+BenchmarkFast-4              100          13767087 ns/op         2473729 B/op      18601 allocs/op
+PASS
+ok      github.com/livestalker/golang-webservices-1/hw3_bench   3.894s
+```
