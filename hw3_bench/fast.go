@@ -19,42 +19,42 @@ type User struct {
 	Phone    string
 }
 
-func (user *User) procBrowsers(i int) string {
-	isAndroid := false
-	isMSIE := false
-
-	browsers := user.Browsers
-
-	for _, browser := range browsers {
-		var notSeenBefore bool
-		if strings.Contains(browser, "Android") {
-			isAndroid = true
-			notSeenBefore = true
-		}
-		if strings.Contains(browser, "MSIE") {
-			isMSIE = true
-			notSeenBefore = true
-		}
-		if isAndroid || isMSIE {
-			for _, item := range seenBrowsers {
-				if item == browser {
-					notSeenBefore = false
-				}
-			}
-			if notSeenBefore {
-				seenBrowsers = append(seenBrowsers, browser)
-				uniqueBrowsers++
-			}
-		}
-	}
-
-	if !(isAndroid && isMSIE) {
-		return ""
-	}
-
-	email := strings.Replace(user.Email, "@", " [at] ", -1)
-	return fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, email)
-}
+// func (user *User) procBrowsers(i int) string {
+// 	isAndroid := false
+// 	isMSIE := false
+//
+// 	browsers := user.Browsers
+//
+// 	for _, browser := range browsers {
+// 		var notSeenBefore bool
+// 		if strings.Contains(browser, "Android") {
+// 			isAndroid = true
+// 			notSeenBefore = true
+// 		}
+// 		if strings.Contains(browser, "MSIE") {
+// 			isMSIE = true
+// 			notSeenBefore = true
+// 		}
+// 		if isAndroid || isMSIE {
+// 			for _, item := range seenBrowsers {
+// 				if item == browser {
+// 					notSeenBefore = false
+// 				}
+// 			}
+// 			if notSeenBefore {
+// 				seenBrowsers = append(seenBrowsers, browser)
+// 				uniqueBrowsers++
+// 			}
+// 		}
+// 	}
+//
+// 	if !(isAndroid && isMSIE) {
+// 		return ""
+// 	}
+//
+// 	email := strings.Replace(user.Email, "@", " [at] ", -1)
+// 	return fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, email)
+// }
 
 func main() {
 	file, err := os.Open(filePath)
@@ -86,8 +86,8 @@ func FastSearch(out io.Writer) {
 	seenBrowsers := []string{}
 	uniqueBrowsers := 0
 	foundUsers := ""
-	users := make([]User, 0)
 
+	i := -1
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -97,11 +97,6 @@ func FastSearch(out io.Writer) {
 		if err != nil {
 			panic(err)
 		}
-		users = append(users, user)
-	}
-
-	for i, user := range users {
-
 		isAndroid := false
 		isMSIE := false
 
@@ -131,6 +126,7 @@ func FastSearch(out io.Writer) {
 			}
 		}
 
+		i = i + 1
 		if !(isAndroid && isMSIE) {
 			continue
 		}
