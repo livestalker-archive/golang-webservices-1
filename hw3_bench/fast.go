@@ -44,10 +44,9 @@ func FastSearch(out io.Writer) {
 	i := -1
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := scanner.Bytes()
 		user := User{}
-		err := user.UnmarshalJSON([]byte(line))
-		//fmt.Printf("%v %v\n", err, line)
+		err := user.UnmarshalJSON(line)
 		if err != nil {
 			panic(err)
 		}
@@ -73,7 +72,6 @@ func FastSearch(out io.Writer) {
 					}
 				}
 				if notSeenBefore {
-					// log.Printf("SLOW New browser: %s, first seen: %s", browser, user["name"])
 					seenBrowsers = append(seenBrowsers, browser)
 					uniqueBrowsers++
 				}
@@ -85,7 +83,6 @@ func FastSearch(out io.Writer) {
 			continue
 		}
 
-		//log.Println("Android and MSIE user:", user.Name, user.Email)
 		email := strings.Replace(user.Email, "@", " [at] ", -1)
 		foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, email)
 	}
