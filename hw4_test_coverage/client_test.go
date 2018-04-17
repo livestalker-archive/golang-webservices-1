@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 type DataSetUsers struct {
@@ -140,6 +141,11 @@ func SearchServerWrongJson(w http.ResponseWriter, r *http.Request) {
 func SearchServerBadRequest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 	w.Write([]byte("Wrong json"))
+}
+
+// Search server which return status: bad request
+func SearchServerSleep(w http.ResponseWriter, r *http.Request) {
+	time.Sleep(2 * time.Second)
 }
 
 // Read dataset from xml source
@@ -284,7 +290,7 @@ func TestFindUserWrongJson(t *testing.T) {
 	}
 }
 
-func TestFindUserTimeout(t *testing.T) {
+func TestFindUserWithoutServer(t *testing.T) {
 	searchClient := &SearchClient{
 		AccessToken: "1234567890",
 		URL:         "",
@@ -331,5 +337,18 @@ func TestFindUserNewError(t *testing.T) {
 	_, err := searchClient.FindUsers(SearchRequest{OrderField: "wrong"})
 	if err == nil {
 		t.Error("Pass bad order field")
+	}
+}
+
+func TestFindUserTimeout(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(SearchServerSleep))
+	defer ts.Close()
+	searchClient := &SearchClient{
+		AccessToken: "1234567890",
+		URL:         ts.URL,
+	}
+	_, err := searchClient.FindUsers(SearchRequest{})
+	if err == nil {
+		t.Error("Timeout not working")
 	}
 }
