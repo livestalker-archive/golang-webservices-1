@@ -1,20 +1,42 @@
 package main
 
 import (
+	"encoding/xml"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"testing"
 )
+
+type DataSetUsers struct {
+	XMLName xml.Name      `xml:"root"`
+	Users   []DataSetUser `xml:"row"`
+}
+
+type DataSetUser struct {
+	Id     int    `xml:"id"`
+	FName  string `xml:"first_name"`
+	LName  string `xml:"last_name"`
+	Age    int    `xml:"age"`
+	About  string `xml:"about"`
+	Gender string `xml:"gender"`
+}
 
 type TestCase struct {
 	Request SearchRequest
 	ErrInfo string
 }
 
+type By func(u1, u2 *DataSetUser) bool
+
 const (
-	ACCESS_TOKEN = "1234567890"
+	ACCESS_TOKEN     = "1234567890"
+	DATASET_FILENAME = "dataset.xml"
 )
 
 func SearchServer(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +55,24 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 	if v, _ := strconv.Atoi(limit); v >= 999999 {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+	dsUsers := getDataSet(DATASET_FILENAME)
+	if dsUsers == nil {
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, `[]`)
+	}
+}
+
+func getDataSet(fileName string) *DataSetUsers {
+	xmlFile, err := os.Open(fileName)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return nil
+	}
+	defer xmlFile.Close()
+	var dsUsers DataSetUsers
+	byteValue, _ := ioutil.ReadAll(xmlFile)
+	xml.Unmarshal(byteValue, &dsUsers)
+	return &dsUsers
 }
 
 // Check imput guards
@@ -86,22 +126,22 @@ func TestFindUserInternalError(t *testing.T) {
 	}
 }
 
-//func TestFindUser(t *testing.T) {
-//	cases := []TestCase{
-//		TestCase{
-//			Request: SearchRequest{},
-//		},
-//	}
-//	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
-//	defer ts.Close()
-//	searchClient := &SearchClient{
-//		AccessToken: "1234567890",
-//		URL:         ts.URL,
-//	}
-//	for _, item := range cases {
-//		_, err := searchClient.FindUsers(item.Request)
-//		if err != nil {
-//			t.Errorf("Error: %s", err)
-//		}
-//	}
-//}
+func TestFindUser(t *testing.T) {
+	cases := []TestCase{
+		TestCase{
+			Request: SearchRequest{},
+		},
+	}
+	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
+	defer ts.Close()
+	searchClient := &SearchClient{
+		AccessToken: "1234567890",
+		URL:         ts.URL,
+	}
+	for _, item := range cases {
+		_, err := searchClient.FindUsers(item.Request)
+		if err != nil {
+			t.Errorf("Error: %s", err)
+		}
+	}
+}
