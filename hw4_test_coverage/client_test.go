@@ -1,22 +1,33 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 )
 
 type DataSetUsers struct {
 	XMLName xml.Name      `xml:"root"`
 	Users   []DataSetUser `xml:"row"`
+}
+
+func (ds *DataSetUsers) Filter(s string) {
+	newUsers := make([]DataSetUser, 0)
+	for _, item := range ds.Users {
+		if strings.Contains(item.FName, s) || strings.Contains(item.LName, s) {
+			newUsers = append(newUsers, item)
+		}
+	}
+	ds.Users = newUsers
 }
 
 type DataSetUser struct {
@@ -72,6 +83,7 @@ const (
 	DATASET_FILENAME = "dataset.xml"
 )
 
+// Main search server
 func SearchServer(w http.ResponseWriter, r *http.Request) {
 	// Get access token
 	accessToken := r.Header.Get("AccessToken")
@@ -79,14 +91,26 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	}
 	// Get query prameters
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	//limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	//offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	query := r.URL.Query().Get("query")
 	order_field := r.URL.Query().Get("order_field")
 	order_by, _ := strconv.Atoi(r.URL.Query().Get("order_by"))
-	log.Printf("limit: %d, offset: %d, query: %s, order_field: %s, order_by: %d", limit, offset, query, order_field, order_by)
-	if limit >= 999999 {
+	if order_by != 0 && order_by != 1 && order_by != -1 {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if order_field == "about" {
+		w.WriteHeader(http.StatusBadRequest)
+		b, _ := json.Marshal(SearchErrorResponse{Error: "ErrorBadOrderField"})
+		w.Write(b)
+		return
+	}
+	if order_field == "wrong" {
+		w.WriteHeader(http.StatusBadRequest)
+		b, _ := json.Marshal(SearchErrorResponse{Error: "NewError"})
+		w.Write(b)
+		return
 	}
 	dsUsers := getDataSet(DATASET_FILENAME)
 	if dsUsers == nil {
@@ -96,6 +120,26 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 	if order_by != 0 {
 		sortDataSet(*dsUsers, order_field, order_by)
 	}
+	if query != "" {
+		dsUsers.Filter(query)
+	}
+	// TODO limit+offset
+	b, err := json.Marshal(dsUsers.Users)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	w.Write(b)
+}
+
+// Search server which return wrong json
+func SearchServerWrongJson(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Wrong Json"))
+}
+
+// Search server which return status: bad request
+func SearchServerBadRequest(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusBadRequest)
+	w.Write([]byte("Wrong json"))
 }
 
 // Read dataset from xml source
@@ -121,8 +165,6 @@ func sortDataSet(ds DataSetUsers, field string, order int) {
 		By(byName).Sort(ds, order)
 	case "age":
 		By(byAge).Sort(ds, order)
-	case "about":
-		By(byAge).Sort(ds, order)
 	case "gender":
 		By(byGender).Sort(ds, order)
 	default:
@@ -143,11 +185,6 @@ func byName(u1, u2 *DataSetUser) bool {
 // Sort by user age
 func byAge(u1, u2 *DataSetUser) bool {
 	return u1.Age < u2.Age
-}
-
-// Sort by about field
-func byAbout(u1, u2 *DataSetUser) bool {
-	return u1.About < u2.About
 }
 
 // Sort by gender
@@ -195,7 +232,7 @@ func TestFindUserAuth(t *testing.T) {
 func TestFindUserInternalError(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
 	defer ts.Close()
-	req := SearchRequest{Limit: 999999}
+	req := SearchRequest{OrderBy: 2}
 	searchClient := &SearchClient{
 		AccessToken: ACCESS_TOKEN,
 		URL:         ts.URL,
@@ -210,7 +247,13 @@ func TestFindUser(t *testing.T) {
 	cases := []TestCase{
 		TestCase{
 			Request: SearchRequest{
+				Limit: 999,
+			},
+		},
+		TestCase{
+			Request: SearchRequest{
 				OrderBy: -1,
+				Query:   "Kane",
 			},
 		},
 	}
@@ -225,5 +268,68 @@ func TestFindUser(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error: %s", err)
 		}
+	}
+}
+
+func TestFindUserWrongJson(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(SearchServerWrongJson))
+	defer ts.Close()
+	searchClient := &SearchClient{
+		AccessToken: "1234567890",
+		URL:         ts.URL,
+	}
+	_, err := searchClient.FindUsers(SearchRequest{})
+	if err == nil {
+		t.Error("Pass wrong Json")
+	}
+}
+
+func TestFindUserTimeout(t *testing.T) {
+	searchClient := &SearchClient{
+		AccessToken: "1234567890",
+		URL:         "",
+	}
+	_, err := searchClient.FindUsers(SearchRequest{})
+	if err == nil {
+		t.Error("Pass without server")
+	}
+}
+
+func TestFindUserBadRequest(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(SearchServerBadRequest))
+	defer ts.Close()
+	searchClient := &SearchClient{
+		AccessToken: "1234567890",
+		URL:         ts.URL,
+	}
+	_, err := searchClient.FindUsers(SearchRequest{})
+	if err == nil {
+		t.Error("Pass bad request and wrong json")
+	}
+}
+
+func TestFindUserBadOrderField(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
+	defer ts.Close()
+	searchClient := &SearchClient{
+		AccessToken: "1234567890",
+		URL:         ts.URL,
+	}
+	_, err := searchClient.FindUsers(SearchRequest{OrderField: "about"})
+	if err == nil {
+		t.Error("Pass bad order field")
+	}
+}
+
+func TestFindUserNewError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
+	defer ts.Close()
+	searchClient := &SearchClient{
+		AccessToken: "1234567890",
+		URL:         ts.URL,
+	}
+	_, err := searchClient.FindUsers(SearchRequest{OrderField: "wrong"})
+	if err == nil {
+		t.Error("Pass bad order field")
 	}
 }
