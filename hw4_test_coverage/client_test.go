@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strconv"
 	"testing"
 )
@@ -32,7 +33,39 @@ type TestCase struct {
 	ErrInfo string
 }
 
+// Realize sort functionality
 type By func(u1, u2 *DataSetUser) bool
+
+func (by By) Sort(ds DataSetUsers, order int) {
+	us := &userSorter{
+		ds:    ds,
+		by:    by,
+		order: order,
+	}
+	sort.Sort(us)
+}
+
+type userSorter struct {
+	ds    DataSetUsers
+	by    By
+	order int
+}
+
+func (us *userSorter) Len() int {
+	return len(us.ds.Users)
+}
+
+func (us *userSorter) Swap(i, j int) {
+	us.ds.Users[i], us.ds.Users[j] = us.ds.Users[j], us.ds.Users[i]
+}
+
+func (us *userSorter) Less(i, j int) bool {
+	res := us.by(&us.ds.Users[i], &us.ds.Users[j])
+	if us.order == -1 {
+		res = !res
+	}
+	return res
+}
 
 const (
 	ACCESS_TOKEN     = "1234567890"
@@ -46,13 +79,13 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	}
 	// Get query prameters
-	limit := r.URL.Query().Get("limit")
-	offset := r.URL.Query().Get("offset")
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	query := r.URL.Query().Get("query")
 	order_field := r.URL.Query().Get("order_field")
-	order_by := r.URL.Query().Get("order_by")
-	log.Printf("limit: %s, offset: %s, query: %s, order_field: %s, order_by: %s", limit, offset, query, order_field, order_by)
-	if v, _ := strconv.Atoi(limit); v >= 999999 {
+	order_by, _ := strconv.Atoi(r.URL.Query().Get("order_by"))
+	log.Printf("limit: %d, offset: %d, query: %s, order_field: %s, order_by: %d", limit, offset, query, order_field, order_by)
+	if limit >= 999999 {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	dsUsers := getDataSet(DATASET_FILENAME)
@@ -60,8 +93,12 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		io.WriteString(w, `[]`)
 	}
+	if order_by != 0 {
+		sortDataSet(*dsUsers, order_field, order_by)
+	}
 }
 
+// Read dataset from xml source
 func getDataSet(fileName string) *DataSetUsers {
 	xmlFile, err := os.Open(fileName)
 	if err != nil {
@@ -73,6 +110,49 @@ func getDataSet(fileName string) *DataSetUsers {
 	byteValue, _ := ioutil.ReadAll(xmlFile)
 	xml.Unmarshal(byteValue, &dsUsers)
 	return &dsUsers
+}
+
+// Sort dataset by field and specific order
+func sortDataSet(ds DataSetUsers, field string, order int) {
+	switch field {
+	case "id":
+		By(byId).Sort(ds, order)
+	case "name":
+		By(byName).Sort(ds, order)
+	case "age":
+		By(byAge).Sort(ds, order)
+	case "about":
+		By(byAge).Sort(ds, order)
+	case "gender":
+		By(byGender).Sort(ds, order)
+	default:
+		By(byId).Sort(ds, order)
+	}
+}
+
+// Sort by user id
+func byId(u1, u2 *DataSetUser) bool {
+	return u1.Id < u2.Id
+}
+
+// Sort by full user name
+func byName(u1, u2 *DataSetUser) bool {
+	return u1.FName+u1.LName < u2.FName+u2.LName
+}
+
+// Sort by user age
+func byAge(u1, u2 *DataSetUser) bool {
+	return u1.Age < u2.Age
+}
+
+// Sort by about field
+func byAbout(u1, u2 *DataSetUser) bool {
+	return u1.About < u2.About
+}
+
+// Sort by gender
+func byGender(u1, u2 *DataSetUser) bool {
+	return u1.Gender < u2.Gender
 }
 
 // Check imput guards
@@ -129,7 +209,9 @@ func TestFindUserInternalError(t *testing.T) {
 func TestFindUser(t *testing.T) {
 	cases := []TestCase{
 		TestCase{
-			Request: SearchRequest{},
+			Request: SearchRequest{
+				OrderBy: -1,
+			},
 		},
 	}
 	ts := httptest.NewServer(http.HandlerFunc(SearchServer))
